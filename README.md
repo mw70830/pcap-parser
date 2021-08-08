@@ -1,12 +1,17 @@
 # pcap-parser
 packetdump analyzer.
+developed on ubuntu 18.04, python3.
+
+# spec
 1. analyze session and print session(tcp stream)
 2. exists of SYN/FIN/RST
 3. exists of invalid ack.
 
 # usage
-python3 pcap-parser-main.py -p [덤프파일 경로]
-ex) python3 pcap-parser-main.py -p ../pcap-sample/packetDump_test.pcap
+```
+python3 pcap-parser-main.py -p [dump file's path]
+ ex) python3 pcap-parser-main.py -p ../pcap-sample/packetDump_test.pcap
+```
 
 # output
 ```
@@ -26,5 +31,7 @@ now on parsing, each packet.
 ```
 
 # required packages
+```
 install 'pyshark' module --> pip3 install pyshark
 install 'tshark' --> apt install tshark
+```
