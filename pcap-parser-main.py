@@ -147,8 +147,15 @@ class Session:
     def update(self, packet):
         self.__update__(self.find_direction(packet), packet)
 
-    def print_session(self):
+    def check_printable(self):
+        return True
         if self.occur_reverse_ack_b_to_a > 0 or self.occur_reverse_ack_a_to_b > 0:
+            return True
+        else:
+            return False
+
+    def print_session(self):
+        if self.check_printable() == True:
             print ("[{}] {} A({}:{}), B({}:{})".format(self.stream_id, self.start_time, self.src_ip, self.src_port, self.dst_ip, self.dst_port ))
             print ("  [A to B] SYN:{},FIN:{},RST:{} | [B to A] SYN:{},FIN:{},RST:{}".format(
                 self.a2b_syn, self.a2b_fin, self.a2b_rst,
