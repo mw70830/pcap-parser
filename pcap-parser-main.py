@@ -63,6 +63,9 @@ class Session:
         self.occur_partial_ack_b_to_a = 0
         self.occur_reverse_ack_b_to_a = 0
 
+        self.data_a_to_b = {}   #리스트는 for문 내에서 지우기가 어려워서 dictionary로 지정.
+        self.data_b_to_a = {}
+
         self.update(packet)
 
     def find_direction(self, packet):
@@ -71,6 +74,51 @@ class Session:
             return True
         else:
             return False
+
+    def clean_by_ack(self, data_list, ack):
+        for _seq, _len in data_list:
+            if (_len >= ack):
+                # 지우기
+                pass
+        pass
+
+    def update_data(self, data_diction, seq, tcp_len):
+        retrans = 0
+        find_flag = False
+        seq_tcp_len = seq + tcp_len
+
+        if (tcp_len == 0):
+            return retrans
+
+        for _seq, _len in data_diction:
+            # 1. seq와 정확하게 일치하는 경우.
+            if (_seq == seq):
+                retrans = retrans + 1
+                find_flag = True
+
+                if (tcp_len):
+                    # 데이터 파트가 기존 seq+len 조합보다 더 작게 들어온 경우.
+                    pass
+                break
+
+            # 2. seq가 기존의 패킷 범위 내에 존재하는 경우.
+            elif ( _seq < seq ) and ( seq < _len):
+                # partial ??? 암튼 찾긴 찾은것이니 ...
+                if (_len < seq_tcp_len):
+                    print("invalid seq len")
+                    continue
+
+                retrans = retrans + 1
+                find_flag = True
+                pass
+
+            # 3. seq가 기존의 밖에 있는 경우. continue
+            continue
+
+        if find_flag == False:
+            data_diction.append(seq,seq_tcp_len)
+
+        return retrans
 
     def __update__(self, direction, packet):
         flag = int(packet.tcp.flags, 0)
@@ -121,6 +169,15 @@ class Session:
 
             # progress_a_to_b
             # TODO. 진행중인 단계 개발 해야함.
+            # 재전송을 확인한다.
+            '''
+            재전송이란?
+            보냈던 seq를 다시 보내게 된 경우를 말한다.
+            a to b의 seq는 전송중인 a to b의 리스트를 갱신한다.
+            갱신중에 기존에 있었던 것이 확인 되면, retrans로 정의한다.
+            '''
+            #self.update_data(self.data_a_to_b, seq, tcp_len)
+            #self.clean_by_ack(self.data_b_to_a, ack)
 
         else:
             # B to A
@@ -143,6 +200,8 @@ class Session:
             elif self.complete_a_to_b > ack:
                 self.occur_reverse_ack_b_to_a = self.occur_reverse_ack_b_to_a + 1
 
+            #self.update_data(self.data_b_to_a, seq, tcp_len)
+
 
     def update(self, packet):
         self.__update__(self.find_direction(packet), packet)
@@ -164,6 +223,16 @@ class Session:
                 print (f"  [WARNING] reverse ack, In the data going from b to a : {self.occur_reverse_ack_b_to_a}")
             if self.occur_reverse_ack_a_to_b > 0:
                 print (f"  [WARNING] reverse ack, In the data going from a to b : {self.occur_reverse_ack_a_to_b}")
+
+    def print_session_report(self, fp):
+        fp.write ("[{}] {} A({}:{}), B({}:{})".format(self.stream_id, self.start_time, self.src_ip, self.src_port, self.dst_ip, self.dst_port ))
+        fp.write ("  [A to B] SYN:{},FIN:{},RST:{} | [B to A] SYN:{},FIN:{},RST:{}\n".format(
+            self.a2b_syn, self.a2b_fin, self.a2b_rst,
+            self.b2a_syn, self.b2a_fin, self.b2a_rst))
+        if self.occur_reverse_ack_b_to_a > 0:
+            fp.write (f"  [WARNING] reverse ack, In the data going from b to a : {self.occur_reverse_ack_b_to_a}\n")
+        if self.occur_reverse_ack_a_to_b > 0:
+            fp.write (f"  [WARNING] reverse ack, In the data going from a to b : {self.occur_reverse_ack_a_to_b}\n")
 
     def print_packet(self, packet):
         print("{}:{}-{}:{}".format(packet.ip.src,packet.tcp.srcport, packet.ip.dst,packet.tcp.dstport))
@@ -189,29 +258,37 @@ def packet_handler(packet):
     if (f_eth == 1) and (f_ip == 1) and (f_tcp == 1):
         tcp_packet_handler(packet)
 
-def print_report():
-    for session in traffic_meta_data.values():
-        session.print_session()
+def print_report(path):
+    f = open(path+".log", 'w')
 
+    for session in traffic_meta_data.values():
+        #session.print_session()
+        session.print_session_report(f)
+
+    f.close()
 def parsing_start(path):
     print_start_comment(path)
 
     packets = pyshark.FileCapture(path, use_json=True)
     pkt_count = 0
+    pkts_len = 0
     print("now on parsing, each packet.")
+    file_size = os.path.getsize(path)
+
     for packet in packets:
         packet_handler(packet)
-        print(f'>> {pkt_count}', end = "\r")
+        print(f'>> packet count : {pkt_count}, packet bytes : {pkts_len}/{file_size}({pkts_len/file_size*100:.2f}%)', end = "\r")
         pkt_count = pkt_count + 1
+        pkts_len = pkts_len + len(packet)
 
     print_end_comment(path)
 
-    print_report()
+    print_report(path)
 
 def print_end_comment(path):
     print("\n")
     print("= parsing done this file. = ")
-    print( path)
+    print( path+".log")
     print()
 
 def print_start_comment(path):
