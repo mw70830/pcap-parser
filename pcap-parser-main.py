@@ -305,14 +305,15 @@ def start_program():
 
     for path in args.paths:
         if os.path.exists(path) == True:
+            # init global var
+            global traffic_meta_data
+            traffic_meta_data = {}
             parsing_start(path)
         else:
             print("This file or path is not exists.", path)
 
 if __name__ == "__main__":
-    # init global var
-    global traffic_meta_data
-    traffic_meta_data = {}
+
 
     # start program
     start_program()
